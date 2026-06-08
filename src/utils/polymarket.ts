@@ -352,6 +352,31 @@ export const fetchAllPolymarketOdds = async (
   return odds;
 };
 
+export type PolymarketEventOdds = {
+  selected: Record<string, number | null>;
+  all: Record<string, Record<string, number>>;
+};
+
+export const fetchPolymarketEventOdds = async (
+  events: Event[],
+  picks: Record<string, string>
+): Promise<PolymarketEventOdds> => {
+  const selected: Record<string, number | null> = {};
+  const all: Record<string, Record<string, number>> = {};
+
+  await Promise.all(
+    events.map(async (event) => {
+      const eventOdds = await fetchEventAllOdds(event.id, event.teams);
+      all[event.id] = eventOdds;
+
+      const team = findTeam(event, picks[event.id]);
+      selected[event.id] = team ? eventOdds[team.id] ?? null : null;
+    })
+  );
+
+  return { selected, all };
+};
+
 export const formatOdds = (odds: number | null): string => {
   if (odds === null) return "N/A";
   const percent = odds * 100;

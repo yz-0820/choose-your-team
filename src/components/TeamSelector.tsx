@@ -84,7 +84,6 @@ export function TeamSelector({ event, selectedTeamId, onClose, onPick }: TeamSel
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜索队伍"
-            autoFocus
           />
         </label>
 

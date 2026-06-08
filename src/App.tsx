@@ -15,7 +15,7 @@ import {
   type PredictionState,
 } from "./utils/predictions";
 import { requestAiRoast } from "./utils/aiRoast";
-import { fetchAllPolymarketOdds, getFilteredEvents } from "./utils/polymarket";
+import { fetchPolymarketEventOdds, getFilteredEvents } from "./utils/polymarket";
 
 // 全局事件列表（动态加载，可能包含淘汰过滤后的队伍）
 let activeEvents: typeof defaultEvents = defaultEvents;
@@ -183,6 +183,7 @@ function App() {
 
   const [posterImageData, setPosterImageData] = useState<string | null>(null);
   const [polymarketOdds, setPolymarketOdds] = useState<Record<string, number | null>>({});
+  const [polymarketEventOdds, setPolymarketEventOdds] = useState<Record<string, Record<string, number>>>({});
   const [generating, setGenerating] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
@@ -249,11 +250,12 @@ function App() {
     setGenerating(true);
 
     // 获取 Polymarket 实时胜率
-    const odds = await fetchAllPolymarketOdds(activeEvents, state.picks);
-    setPolymarketOdds(odds);
+    const odds = await fetchPolymarketEventOdds(activeEvents, state.picks);
+    setPolymarketOdds(odds.selected);
+    setPolymarketEventOdds(odds.all);
 
     setAiRoast(null);
-    const comment = await requestAiRoast(activeEvents, state.picks, odds);
+    const comment = await requestAiRoast(activeEvents, state.picks, odds.selected, odds.all);
     setAiRoast(comment);
 
     setRefreshCount(0);
@@ -379,7 +381,7 @@ function App() {
     setLastRefreshTime(now);
     setRefreshCount((c) => c + 1);
     setAiRoast("正在重新生成...");
-    const comment = await requestAiRoast(activeEvents, state.picks, polymarketOdds);
+    const comment = await requestAiRoast(activeEvents, state.picks, polymarketOdds, polymarketEventOdds);
     setAiRoast(comment);
     setToast("AI 锐评已刷新");
   };

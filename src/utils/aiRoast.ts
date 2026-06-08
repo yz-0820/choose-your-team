@@ -8,21 +8,42 @@ const getEventLabel = (event: Event) => {
   return event.shortName;
 };
 
-/**
- * 根据胜率和参赛队伍数计算热门度
- * 热门度 = 实际胜率 / 平均胜率（1/队伍数）
- * >= 2.0 倍平均: 热门
- * >= 1.0 倍平均: 正常
- * >= 0.5 倍平均: 偏冷
- * < 0.5 倍平均: 大冷
- */
-const getPopularityLabel = (odds: number, teamCount: number): string => {
-  const avgOdds = 1 / teamCount;
-  const ratio = odds / avgOdds;
-  if (ratio >= 2.0) return "热门";
-  if (ratio >= 1.0) return "正常";
-  if (ratio >= 0.5) return "偏冷";
-  return "大冷";
+const formatPercent = (value: number) => `${(value * 100).toFixed(value < 0.01 ? 2 : 1)}%`;
+
+const getMarketTier = (rank: number, teamCount: number, normalizedOdds: number) => {
+  const percentile = rank / teamCount;
+  if (rank <= 2) return "夺冠热门";
+  if (normalizedOdds < 0.02) return "大冷门";
+  if (percentile <= 0.25) return "强势选择";
+  if (percentile <= 0.75) return "合理选择";
+  return "冷门选择";
+};
+
+const getMarketProfile = (
+  odds: number,
+  eventOdds: Record<string, number> | undefined,
+  teamId: string,
+  fallbackTeamCount: number,
+) => {
+  const entries = Object.entries(eventOdds ?? {})
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  const teamCount = entries.length || fallbackTeamCount;
+  const totalOdds = entries.reduce((total, [, value]) => total + value, 0);
+  const normalizedOdds = totalOdds > 0 ? odds / totalOdds : odds;
+  const rankIndex = entries.findIndex(([id]) => id === teamId);
+  const rank = rankIndex >= 0 ? rankIndex + 1 : null;
+  const relativeToAverage = normalizedOdds * teamCount;
+  const tier = rank ? getMarketTier(rank, teamCount, normalizedOdds) : "参考不足";
+
+  return {
+    rank,
+    teamCount,
+    tier,
+    normalizedOdds,
+    relativeToAverage,
+  };
 };
 
 const cleanComment = (comment: string) => {
@@ -35,7 +56,8 @@ const cleanComment = (comment: string) => {
 export const buildAiRoastPrompt = (
   events: Event[],
   picks: Record<string, string>,
-  polymarketOdds: Record<string, number | null>
+  polymarketOdds: Record<string, number | null>,
+  eventOddsByTeam: Record<string, Record<string, number>> = {},
 ) => {
   const lines = events
     .map((event) => {
@@ -45,8 +67,8 @@ export const buildAiRoastPrompt = (
       const odd = polymarketOdds?.[event.id];
       let oddText = "";
       if (odd !== undefined && odd !== null) {
-        const label = getPopularityLabel(odd, event.teams.length);
-        oddText = `（实时胜率 ${(odd * 100).toFixed(1)}%，${label}，共 ${event.teams.length} 支队伍竞争）`;
+        const profile = getMarketProfile(odd, eventOddsByTeam[event.id], team.id, event.teams.length);
+        oddText = `（实时胜率 ${formatPercent(odd)}，归一化胜率 ${formatPercent(profile.normalizedOdds)}，市场排名 ${profile.rank ? `第 ${profile.rank}/${profile.teamCount}` : "暂无"}，热门分层：${profile.tier}，相对平均 ${profile.relativeToAverage.toFixed(1)} 倍）`;
       }
       return `- ${getEventLabel(event)} · ${event.name}: ${teamName}${oddText}`;
     });
@@ -58,8 +80,8 @@ export const buildAiRoastPrompt = (
     `今天是 ${new Date().toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" })}。`,
     "请基于用户的冠军预测组合，生成 1 句中文娱乐锐评。",
     "要求：二十四至四十八个汉字；诙谐、有梗、有趣；",
-    "根据热门度调整语气——热门队伍用'押注稳了''随大流'的语气，大冷队伍用'搏冷门''做梦'的语气，正常队伍用中性吐槽；",
-    "结合实时胜率和队伍实力，制造反差感或吐槽感；",
+    "根据市场排名、归一化胜率、热门分层和相对平均值调整语气：夺冠热门/强势选择可以调侃稳健或随大流，冷门/大冷门可以调侃搏冷或做梦，合理选择用中性吐槽；",
+    "结合四项选择之间的强弱反差，制造节目效果，不要机械复述数据；",
     "只锐评选择组合，不攻击国家、民族、地区、球员、选手或真人；不要提真实投注、赌博、赔率；不要输出标题、引号或解释。",
     "用户预测：",
     ...lines,
@@ -69,9 +91,10 @@ export const buildAiRoastPrompt = (
 export const requestAiRoast = async (
   events: Event[],
   picks: Record<string, string>,
-  polymarketOdds: Record<string, number | null> = {}
+  polymarketOdds: Record<string, number | null> = {},
+  eventOddsByTeam: Record<string, Record<string, number>> = {},
 ) => {
-  const prompt = buildAiRoastPrompt(events, picks, polymarketOdds);
+  const prompt = buildAiRoastPrompt(events, picks, polymarketOdds, eventOddsByTeam);
   if (!prompt) return null;
 
   const controller = new AbortController();
