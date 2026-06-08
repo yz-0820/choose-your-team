@@ -70,12 +70,10 @@ const valorantTeams: Team[] = [
 const csTeams: Team[] = [
   t("b8", "B8", "B8", "Stage 1", ["#008cff", "#111111"]),
   t("betboom", "BetBoom Team", "BetBoom Team", "Stage 1", ["#ffcc00", "#111111"]),
-  t("gamerlegion", "GamerLegion", "GamerLegion", "Stage 1", ["#111111", "#d7ff2f"]),
   t("m80", "M80", "M80", "Stage 1", ["#54ff7f", "#111111"]),
   t("mibr", "MIBR", "MIBR", "Stage 1", ["#08a64b", "#111111"]),
   t("big", "BIG", "BIG", "Stage 1", ["#ffffff", "#111111"]),
   t("tyloo", "TYLOO", "TYLOO", "Stage 1", ["#ff251c", "#111111"]),
-  t("flyquest", "FlyQuest", "FlyQuest", "Stage 1", ["#44d62c", "#111111"]),
   t("fut", "FUT Esports", "FUT Esports", "Stage 2", ["#e41d2c", "#111111"]),
   t("spirit", "Spirit", "Spirit", "Stage 2", ["#1d66ff", "#111111"]),
   t("astralis", "Astralis", "Astralis", "Stage 2", ["#e21b2d", "#111111"]),
