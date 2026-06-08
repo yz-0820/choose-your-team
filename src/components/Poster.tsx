@@ -105,7 +105,7 @@ export const Poster = forwardRef<HTMLDivElement, PosterProps>(function Poster({ 
 
         <div className="poster-slip-list" aria-label="冠军预测投注单明细">
           {posterPicks.map((pick) => (
-            <div className={`poster-slip-row ${pick.team ? "" : "unselected"}`} key={pick.event.id}>
+            <div className={`poster-slip-row event-${pick.event.id} ${pick.team ? "" : "unselected"}`} key={pick.event.id}>
               <div
                 className="slip-trophy-bg"
                 style={{ backgroundImage: `url(${pick.trophyBackground})` }}
