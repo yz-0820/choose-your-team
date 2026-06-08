@@ -41,6 +41,10 @@ export default {
       return handleAiRoast(request, env);
     }
 
+    if (url.pathname === "/api/ai-roast-health") {
+      return handleAiRoastHealth(env);
+    }
+
     if (url.pathname === "/api/polymarket") {
       return handlePolymarket(request);
     }
@@ -74,6 +78,67 @@ async function handleAiRoast(request: Request, env: Env) {
     return json({ comment: normalizeComment(comment) });
   } catch {
     return json({ comment: "" });
+  }
+}
+
+async function handleAiRoastHealth(env: Env) {
+  const apiKey = env.AI_ROAST_API_KEY;
+  const endpoint = env.AI_ROAST_ENDPOINT || DEFAULT_AI_ENDPOINT;
+  const configuredModel = env.AI_ROAST_MODEL || DEFAULT_AI_MODEL;
+
+  if (!apiKey) {
+    return json({
+      ok: false,
+      stage: "missing_api_key",
+      endpointConfigured: Boolean(env.AI_ROAST_ENDPOINT),
+      model: configuredModel,
+    });
+  }
+
+  try {
+    const upstream = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: configuredModel,
+        messages: [
+          { role: "system", content: "只输出中文两个字：正常" },
+          { role: "user", content: "健康检查" },
+        ],
+        max_tokens: 20,
+        temperature: 0,
+        thinking: { type: "disabled" },
+        stream: false,
+      }),
+    });
+
+    const text = await upstream.text();
+    if (!upstream.ok) {
+      return json({
+        ok: false,
+        stage: "upstream_error",
+        status: upstream.status,
+        model: configuredModel,
+        bodyPreview: text.slice(0, 240),
+      });
+    }
+
+    return json({
+      ok: true,
+      stage: "ok",
+      status: upstream.status,
+      model: configuredModel,
+    });
+  } catch (error) {
+    return json({
+      ok: false,
+      stage: "fetch_failed",
+      model: configuredModel,
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
   }
 }
 
