@@ -36,12 +36,15 @@ export function TeamSelector({ event, selectedTeamId, onClose, onPick }: TeamSel
 
   const regions = useMemo(() => {
     if (!event) return [ALL_REGIONS];
-    const counts = event.teams.reduce<Record<string, number>>((acc, team) => {
-      if (team.region) acc[team.region] = (acc[team.region] ?? 0) + 1;
-      return acc;
-    }, {});
-    const regionNames = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-    return [ALL_REGIONS, ...regionNames];
+    const regionOrder: string[] = [];
+    const seen = new Set<string>();
+    event.teams.forEach((team) => {
+      if (team.region && !seen.has(team.region)) {
+        seen.add(team.region);
+        regionOrder.push(team.region);
+      }
+    });
+    return [ALL_REGIONS, ...regionOrder];
   }, [event]);
 
   const teams = useMemo(() => {

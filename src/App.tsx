@@ -6,7 +6,7 @@ import { EventCard } from "./components/EventCard";
 import { Poster } from "./components/Poster";
 import { TeamSelector } from "./components/TeamSelector";
 import { Toast } from "./components/Toast";
-import { events, type Event } from "./data/events";
+import { events as defaultEvents, type Event } from "./data/events";
 import {
   decodePicks,
   encodePicks,
@@ -15,10 +15,13 @@ import {
   type PredictionState,
 } from "./utils/predictions";
 import { requestAiRoast } from "./utils/aiRoast";
-import { fetchAllPolymarketOdds } from "./utils/polymarket";
+import { fetchAllPolymarketOdds, getFilteredEvents } from "./utils/polymarket";
+
+// 全局事件列表（动态加载，可能包含淘汰过滤后的队伍）
+let activeEvents: typeof defaultEvents = defaultEvents;
 
 const normalizePicks = (picks: Record<string, string>) =>
-  events.reduce<Record<string, string>>((next, event) => {
+  activeEvents.reduce<Record<string, string>>((next, event) => {
     const picked = picks[event.id];
     if (event.teams.some((team) => team.id === picked)) {
       next[event.id] = picked;
@@ -60,6 +63,15 @@ function App() {
   const [posterSerial, setPosterSerial] = useState<number | null>(null);
   const [aiRoast, setAiRoast] = useState<string | null>(null);
   const posterRef = useRef<HTMLDivElement>(null);
+  const [, setRefresh] = useState(0);
+
+  // 页面加载时自动过滤已淘汰队伍（胜率为0）
+  useEffect(() => {
+    getFilteredEvents(defaultEvents).then((filtered) => {
+      activeEvents = filtered;
+      setRefresh((n) => n + 1);
+    });
+  }, []);
 
   // 禁止/允许页面滚动
   useEffect(() => {
@@ -74,7 +86,7 @@ function App() {
   }, [posterOpen, activeEvent]);
 
   const pickedCount = useMemo(
-    () => events.filter((event) => Boolean(state.picks[event.id])).length,
+    () => activeEvents.filter((event) => Boolean(state.picks[event.id])).length,
     [state.picks],
   );
 
@@ -97,7 +109,7 @@ function App() {
   };
 
   const luckyPick = () => {
-    const picks = events.reduce<Record<string, string>>((next, event) => {
+    const picks = activeEvents.reduce<Record<string, string>>((next, event) => {
       const team = event.teams[Math.floor(Math.random() * event.teams.length)];
       if (team) {
         next[event.id] = team.id;
@@ -111,7 +123,7 @@ function App() {
   };
 
   const randomEventPick = (eventId: string) => {
-    const event = events.find((item) => item.id === eventId);
+    const event = activeEvents.find((item) => item.id === eventId);
     if (!event) return;
     const team = event.teams[Math.floor(Math.random() * event.teams.length)];
     if (!team) return;
@@ -134,13 +146,25 @@ function App() {
     return url.toString();
   };
 
-  const shareLink = async () => {
+  const sharePrediction = async () => {
     const shareUrl = buildShareUrl();
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setToast("分享链接已复制");
-    } catch {
-      window.prompt("复制分享链接", shareUrl);
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "我的冠军预测",
+          text: "看看我的冠军预测！",
+          url: shareUrl,
+        });
+      } catch {
+        // 用户取消分享，不做处理
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setToast("分享链接已复制");
+      } catch {
+        window.prompt("复制分享链接", shareUrl);
+      }
     }
   };
 
@@ -149,7 +173,7 @@ function App() {
   const [generating, setGenerating] = useState(false);
 
   const generatePoster = async () => {
-    if (pickedCount !== events.length) {
+    if (pickedCount !== activeEvents.length) {
       setToast("请先选满 4 项冠军预测");
       return;
     }
@@ -157,11 +181,11 @@ function App() {
     setGenerating(true);
 
     // 获取 Polymarket 实时胜率
-    const odds = await fetchAllPolymarketOdds(events, state.picks);
+    const odds = await fetchAllPolymarketOdds(activeEvents, state.picks);
     setPolymarketOdds(odds);
 
     setAiRoast(null);
-    const comment = await requestAiRoast(events, state.picks, odds);
+    const comment = await requestAiRoast(activeEvents, state.picks, odds);
     setAiRoast(comment);
 
     const serial = nextPosterSerial();
@@ -208,8 +232,8 @@ function App() {
     setToast("海报已生成");
   };
 
-  const handleSharePlaceholder = () => {
-    setToast("分享功能待补充");
+  const handleSharePrediction = () => {
+    sharePrediction();
   };
 
   const downloadPoster = async () => {
@@ -278,8 +302,30 @@ function App() {
     }
   };
 
-  const sharePoster = () => {
-    setToast("分享功能开发中");
+  const sharePoster = async () => {
+    if (!posterImageData) {
+      setToast("请先生成海报");
+      return;
+    }
+    if (navigator.share) {
+      try {
+        const response = await fetch(posterImageData);
+        const blob = await response.blob();
+        const file = new File([blob], "我的冠军预测.png", { type: "image/png" });
+        await navigator.share({
+          title: "我的冠军预测",
+          text: "看看我的冠军预测海报！",
+          files: [file],
+        });
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          // 降级：复制链接
+          sharePrediction();
+        }
+      }
+    } else {
+      sharePrediction();
+    }
   };
 
   return (
@@ -296,14 +342,14 @@ function App() {
 
         <div className="app-frame">
           <AppHeader
-            events={events}
+            events={activeEvents}
             picks={state.picks}
             onLuckyPick={luckyPick}
             onRandomEventPick={randomEventPick}
           />
 
           <div className="event-list" aria-label="赛事冠军预测列表">
-            {events.map((event) => (
+            {activeEvents.map((event) => (
               <EventCard
                 key={event.id}
                 event={event}
@@ -318,13 +364,13 @@ function App() {
             <button
               type="button"
               onClick={generatePoster}
-              aria-disabled={pickedCount !== events.length}
-              data-disabled={pickedCount !== events.length}
+              aria-disabled={pickedCount !== activeEvents.length}
+              data-disabled={pickedCount !== activeEvents.length}
             >
               <Download size={18} aria-hidden="true" />
               生成你的预测海报
             </button>
-            <button className="share-action" type="button" onClick={handleSharePlaceholder}>
+            <button className="share-action" type="button" onClick={handleSharePrediction}>
               <Share2 size={18} aria-hidden="true" />
               分享
             </button>
@@ -340,7 +386,7 @@ function App() {
       />
 
       <div className="poster-offscreen">
-        <Poster ref={posterRef} events={events} picks={state.picks} serialNumber={posterSerial} aiComment={aiRoast} polymarketOdds={polymarketOdds} />
+        <Poster ref={posterRef} events={activeEvents} picks={state.picks} serialNumber={posterSerial} aiComment={aiRoast} polymarketOdds={polymarketOdds} />
       </div>
       {posterOpen && (
         <div className="poster-sheet" role="dialog" aria-modal="true" aria-label="分享海报预览">
@@ -349,7 +395,7 @@ function App() {
             <button className="poster-close-button" type="button" onClick={() => setPosterOpen(false)} aria-label="关闭">
               <X size={18} aria-hidden="true" />
             </button>
-            <Poster events={events} picks={state.picks} serialNumber={posterSerial} aiComment={aiRoast} polymarketOdds={polymarketOdds} />
+            <Poster events={activeEvents} picks={state.picks} serialNumber={posterSerial} aiComment={aiRoast} polymarketOdds={polymarketOdds} />
             <div className="poster-actions">
               <button type="button" onClick={downloadPoster} className="poster-action-button save">
                 <Save size={18} aria-hidden="true" />

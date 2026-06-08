@@ -54,11 +54,11 @@ const nbaTeams: Team[] = [
 
 const valorantTeams: Team[] = [
   vt("g2", "G2 Esports", "G2 Esports", "Americas", ["#c7c7c7", "#111111"], "G2"),
-  vt("edg", "EDward Gaming", "EDward Gaming", "VCT CN", ["#111111", "#d71920"], "EDG"),
+  vt("edg", "EDward Gaming", "EDward Gaming", "CN", ["#111111", "#d71920"], "EDG"),
   vt("team-heretics", "Team Heretics", "Team Heretics", "EMEA", ["#00a3ff", "#111111"], "TH"),
   vt("paper-rex", "Paper Rex", "Paper Rex", "Pacific", ["#ff6f00", "#191919"], "PRX"),
-  vt("xlg", "XLG Esports", "XLG Esports", "VCT CN", ["#e63d35", "#101318"], "XLG"),
-  vt("drg", "Dragon Ranger", "Dragon Ranger Gaming", "VCT CN", ["#5ce1e6", "#1d2b53"], "DRG"),
+  vt("xlg", "XLG Esports", "XLG Esports", "CN", ["#e63d35", "#101318"], "XLG"),
+  vt("drg", "Dragon Ranger", "Dragon Ranger Gaming", "CN", ["#5ce1e6", "#1d2b53"], "DRG"),
   vt("global-esports", "Global Esports", "Global Esports", "Pacific", ["#111111", "#f4c430"], "GE"),
   vt("full-sense", "FULL SENSE", "FULL SENSE", "Pacific", ["#ff5a1f", "#131313"], "FS"),
   vt("team-vitality", "Vitality", "Vitality", "EMEA", ["#f5d547", "#111111"], "VIT"),

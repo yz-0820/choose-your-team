@@ -288,3 +288,64 @@ export const formatOdds = (odds: number | null): string => {
     return percent.toFixed(1) + "%";
   }
 };
+
+/**
+ * 获取某个赛事所有队伍的实时胜率
+ * 返回 { teamId: odds } 映射
+ */
+export const fetchEventAllOdds = async (
+  eventId: string,
+  teams: Array<{ id: string; nameZh: string; nameEn: string }>
+): Promise<Record<string, number>> => {
+  const slug = getPolymarketSlug(eventId);
+  if (!slug) return {};
+
+  const data = await fetchPolymarketViaViteProxy(slug);
+  if (!data || Array.isArray(data) || !data.markets?.length) return {};
+
+  const odds: Record<string, number> = {};
+
+  for (const team of teams) {
+    const normalizedTeam = normalizeTeamName(team.nameZh).toLowerCase().trim();
+    for (const market of data.markets) {
+      for (const outcome of market.outcomes) {
+        if (outcome.title.toLowerCase() === "yes" && isOutcomeMatch(outcome.title, normalizedTeam, market.question)) {
+          odds[team.id] = outcome.price;
+          break;
+        }
+      }
+    }
+  }
+
+  return odds;
+};
+
+/**
+ * 过滤掉胜率为 0（已淘汰）的队伍
+ * 返回新的事件列表
+ */
+export const getFilteredEvents = async (
+  sourceEvents: typeof import("../data/events").events
+) => {
+  // 并发获取所有赛事的胜率数据
+  const oddsMap = await Promise.all(
+    sourceEvents.map(async (event) => {
+      const odds = await fetchEventAllOdds(event.id, event.teams);
+      return { eventId: event.id, odds };
+    })
+  );
+
+  const oddsByEvent = Object.fromEntries(oddsMap.map(o => [o.eventId, o.odds]));
+
+  // 过滤每个赛事的队伍
+  return sourceEvents.map((event) => ({
+    ...event,
+    teams: event.teams.filter((team) => {
+      const odds = oddsByEvent[event.id]?.[team.id];
+      // 如果没有获取到数据，保留原样（不删）
+      if (odds === undefined) return true;
+      // 胜率为 0 = 已淘汰
+      return odds > 0;
+    }),
+  }));
+};
