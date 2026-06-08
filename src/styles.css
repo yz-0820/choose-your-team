@@ -991,6 +991,17 @@ button {
   border-radius: 12px;
 }
 
+.world-cup-modal .team-option {
+  grid-template-columns: 54px minmax(0, 1fr);
+}
+
+.world-cup-modal .team-option img {
+  width: 54px;
+  height: 36px;
+  border-radius: 0;
+  object-fit: cover;
+}
+
 .team-option strong {
   width: 100%;
   overflow: hidden;

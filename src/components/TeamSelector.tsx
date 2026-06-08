@@ -66,7 +66,7 @@ export function TeamSelector({ event, selectedTeamId, onClose, onPick }: TeamSel
   return (
     <div className="modal-shell" role="dialog" aria-modal="true" aria-label={`${event.name} 全部队伍`}>
       <button className="modal-backdrop" type="button" onClick={onClose} aria-label="关闭队伍选择" />
-      <section className="team-modal">
+      <section className={`team-modal ${event.id === "world-cup" ? "world-cup-modal" : ""}`}>
         <div className="modal-handle" />
         <div className="modal-header">
           <div>
