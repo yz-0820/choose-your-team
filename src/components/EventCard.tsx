@@ -30,14 +30,10 @@ export function EventCard({ event, selectedTeamId, onPick, onOpenSelector }: Eve
   return (
     <article
       className="event-card"
-      style={
-        {
-          "--event-accent": event.accent,
-          "--event-bg": `url(${event.backgroundImage})`,
-        } as CSSProperties
-      }
+      style={{ "--event-accent": event.accent } as CSSProperties}
     >
       <div className={coverClassName}>
+        <img className="event-cover-image" src={event.backgroundImage} alt="" loading="eager" />
         <span>{event.coverLabel}</span>
         <strong>{event.shortName}</strong>
       </div>
