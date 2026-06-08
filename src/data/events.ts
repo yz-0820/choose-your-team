@@ -77,7 +77,7 @@ const csTeams: Team[] = [
   t("fut", "FUT Esports", "FUT Esports", "Stage 2", ["#e41d2c", "#111111"]),
   t("spirit", "Spirit", "Spirit", "Stage 2", ["#1d66ff", "#111111"]),
   t("astralis", "Astralis", "Astralis", "Stage 2", ["#e21b2d", "#111111"]),
-  t("g2-cs", "G2 Esports", "G2 Esports", "Stage 2", ["#c7c7c7", "#111111"]),
+  t("g2-cs", "G2", "G2 Esports", "Stage 2", ["#c7c7c7", "#111111"]),
   t("legacy", "Legacy", "Legacy", "Stage 2", ["#48ff6a", "#111111"]),
   t("pai-nexus", "paiN Gaming", "paiN Gaming", "Stage 2", ["#d4141e", "#111111"]),
   t("monte", "Monte", "Monte", "Stage 2", ["#e3f5ff", "#111111"]),
