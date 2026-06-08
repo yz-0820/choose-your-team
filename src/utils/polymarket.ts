@@ -138,11 +138,52 @@ type PolymarketProxyResponse = {
   markets: PolymarketMarket[];
 } | [];
 
+/** 缓存过期时间：60 分钟 */
+const CACHE_TTL = 60 * 60 * 1000;
+
+const getCacheKey = (slug: string) => `poly:${slug}`;
+
+interface CacheEntry {
+  data: PolymarketProxyResponse;
+  timestamp: number;
+}
+
+const readCache = (slug: string): PolymarketProxyResponse | null => {
+  try {
+    const raw = localStorage.getItem(getCacheKey(slug));
+    if (!raw) return null;
+    const entry: CacheEntry = JSON.parse(raw);
+    if (Date.now() - entry.timestamp < CACHE_TTL) {
+      return entry.data;
+    }
+    localStorage.removeItem(getCacheKey(slug));
+  } catch {
+    // ignore parse errors
+  }
+  return null;
+};
+
+const writeCache = (slug: string, data: PolymarketProxyResponse) => {
+  try {
+    const entry: CacheEntry = { data, timestamp: Date.now() };
+    localStorage.setItem(getCacheKey(slug), JSON.stringify(entry));
+  } catch {
+    // ignore storage errors
+  }
+};
+
 /**
  * 通过 Vite 开发服务器代理获取 Polymarket 数据
  * （Vite 服务端通过配置的 HTTP 代理访问，绕过网络封锁）
+ * 支持 localStorage 60 分钟缓存
  */
 const fetchPolymarketViaViteProxy = async (slug: string): Promise<PolymarketProxyResponse> => {
+  // 优先读缓存
+  const cached = readCache(slug);
+  if (cached !== null) {
+    return cached;
+  }
+
   try {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 15000);
@@ -154,7 +195,10 @@ const fetchPolymarketViaViteProxy = async (slug: string): Promise<PolymarketProx
 
     window.clearTimeout(timeout);
     if (!response.ok) return [];
-    return await response.json();
+    const data = await response.json();
+    // 写入缓存
+    writeCache(slug, data);
+    return data;
   } catch {
     return [];
   }

@@ -1,5 +1,5 @@
 import { toPng } from "html-to-image";
-import { Download, Save, Share2, X } from "lucide-react";
+import { Download, Loader2, Save, Share2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AppHeader } from "./components/AppHeader";
 import { EventCard } from "./components/EventCard";
@@ -92,7 +92,7 @@ function App() {
 
   useEffect(() => {
     if (!toast) return;
-    const timeout = window.setTimeout(() => setToast(""), 2200);
+    const timeout = window.setTimeout(() => setToast(""), 1100);
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
@@ -171,6 +171,9 @@ function App() {
   const [posterImageData, setPosterImageData] = useState<string | null>(null);
   const [polymarketOdds, setPolymarketOdds] = useState<Record<string, number | null>>({});
   const [generating, setGenerating] = useState(false);
+  const [refreshCount, setRefreshCount] = useState(0);
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const canRefresh = refreshCount < 5;
 
   const generatePoster = async () => {
     if (pickedCount !== activeEvents.length) {
@@ -187,6 +190,9 @@ function App() {
     setAiRoast(null);
     const comment = await requestAiRoast(activeEvents, state.picks, odds);
     setAiRoast(comment);
+
+    setRefreshCount(0);
+    setLastRefreshTime(0);
 
     const serial = nextPosterSerial();
     setPosterSerial(serial);
@@ -328,6 +334,17 @@ function App() {
     }
   };
 
+  const regenerateAiRoast = async () => {
+    const now = Date.now();
+    if (now - lastRefreshTime < 5000) return;
+    setLastRefreshTime(now);
+    setRefreshCount((c) => c + 1);
+    setAiRoast("正在重新生成...");
+    const comment = await requestAiRoast(activeEvents, state.picks, polymarketOdds);
+    setAiRoast(comment);
+    setToast("AI 锐评已刷新");
+  };
+
   return (
     <>
       <main className="app-shell">
@@ -386,7 +403,7 @@ function App() {
       />
 
       <div className="poster-offscreen">
-        <Poster ref={posterRef} events={activeEvents} picks={state.picks} serialNumber={posterSerial} aiComment={aiRoast} polymarketOdds={polymarketOdds} />
+        <Poster ref={posterRef} events={activeEvents} picks={state.picks} serialNumber={posterSerial} aiComment={aiRoast} polymarketOdds={polymarketOdds} onRefreshAiRoast={canRefresh ? regenerateAiRoast : undefined} />
       </div>
       {posterOpen && (
         <div className="poster-sheet" role="dialog" aria-modal="true" aria-label="分享海报预览">
@@ -395,7 +412,7 @@ function App() {
             <button className="poster-close-button" type="button" onClick={() => setPosterOpen(false)} aria-label="关闭">
               <X size={18} aria-hidden="true" />
             </button>
-            <Poster events={activeEvents} picks={state.picks} serialNumber={posterSerial} aiComment={aiRoast} polymarketOdds={polymarketOdds} />
+            <Poster events={activeEvents} picks={state.picks} serialNumber={posterSerial} aiComment={aiRoast} polymarketOdds={polymarketOdds} onRefreshAiRoast={canRefresh ? regenerateAiRoast : undefined} />
             <div className="poster-actions">
               <button type="button" onClick={downloadPoster} className="poster-action-button save">
                 <Save size={18} aria-hidden="true" />
@@ -414,7 +431,8 @@ function App() {
 
       {generating && (
         <div className="poster-generating-overlay" aria-label="海报生成中">
-          <span>请稍等，海报生成中</span>
+          <Loader2 className="poster-generating-spinner" size={24} aria-hidden="true" />
+          <span>请稍等，海报和AI锐评生成中</span>
         </div>
       )}
     </>

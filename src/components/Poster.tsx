@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { TicketCheck, Trophy } from "lucide-react";
+import { RefreshCw, TicketCheck, Trophy } from "lucide-react";
 import type { Event } from "../data/events";
 import { findTeam } from "../utils/predictions";
 
@@ -9,6 +9,7 @@ type PosterProps = {
   serialNumber: number | null;
   aiComment?: string | null;
   polymarketOdds?: Record<string, number | null>;
+  onRefreshAiRoast?: () => void;
 };
 
 const getPosterLabel = (event: Event) => {
@@ -55,7 +56,7 @@ const formatTotalHitRate = (rate: number) => {
 const formatTicketSerial = (serialNumber: number | null) =>
   `NO.${String(serialNumber ?? 1).padStart(6, "0")}`;
 
-export const Poster = forwardRef<HTMLDivElement, PosterProps>(function Poster({ events, picks, serialNumber, aiComment, polymarketOdds }, ref) {
+export const Poster = forwardRef<HTMLDivElement, PosterProps>(function Poster({ events, picks, serialNumber, aiComment, polymarketOdds, onRefreshAiRoast }, ref) {
   const ticketDate = getTicketDate();
   const posterPicks = events.map((event) => {
     const team = findTeam(event, picks[event.id]);
@@ -135,6 +136,11 @@ export const Poster = forwardRef<HTMLDivElement, PosterProps>(function Poster({ 
         {aiComment ? (
           <section className="poster-ai-roast" aria-label="AI 锐评">
             <span>AI 锐评</span>
+            {onRefreshAiRoast ? (
+              <button className="poster-ai-roast-refresh" type="button" onClick={onRefreshAiRoast} aria-label="重新生成AI锐评">
+                <RefreshCw size={12} />
+              </button>
+            ) : null}
             <p>{aiComment}</p>
           </section>
         ) : null}

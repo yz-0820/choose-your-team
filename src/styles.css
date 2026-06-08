@@ -577,19 +577,10 @@ button {
   overflow: visible;
 }
 
-.selected-logo img,
-.team-chip img,
-.team-option img {
+.selected-logo img {
   width: 100%;
   height: 100%;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
-  object-fit: contain;
-}
-
-.selected-logo img {
-  width: auto;
-  max-width: 100%;
-  height: 100%;
   object-fit: contain;
 }
 
@@ -636,10 +627,10 @@ button {
 .team-chip {
   position: relative;
   display: grid;
-  grid-template-rows: 42px 24px;
+  grid-template-rows: 34px 24px;
   justify-items: center;
   flex: 0 0 calc((100% - 32px) / 5);
-  gap: 5px;
+  gap: 2px;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 8px;
   padding: 7px 5px;
@@ -648,8 +639,10 @@ button {
 }
 
 .team-chip img {
-  width: 42px;
-  height: 42px;
+  width: 48px;
+  height: 32px;
+  border-radius: 0;
+  object-fit: contain;
 }
 
 .team-chip span {
@@ -995,6 +988,7 @@ button {
   width: 42px;
   height: 42px;
   border: 0;
+  border-radius: 12px;
 }
 
 .team-option strong {
@@ -1198,9 +1192,10 @@ button {
 .poster-slip-row img {
   position: relative;
   z-index: 1;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 40px;
   object-fit: contain;
+  border-radius: 10px;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
 }
 
@@ -1271,11 +1266,32 @@ button {
 }
 
 .poster-ai-roast span {
-  display: block;
+  display: inline-block;
   color: #00e676;
-  font-size: 10px;
+  font-size: 16px;
   font-weight: 950;
   letter-spacing: 0.04em;
+}
+
+.poster-ai-roast-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.poster-ai-roast-refresh:hover {
+  color: #00e676;
+}
+
+.poster-ai-roast-refresh svg {
+  transition: transform 0.3s;
 }
 
 .poster-ai-roast p {
@@ -1409,7 +1425,7 @@ button {
   position: fixed;
   z-index: 40;
   left: 50%;
-  bottom: 88px;
+  bottom: 32px;
   transform: translateX(-50%);
   border-radius: 8px;
   padding: 10px 14px;
@@ -1425,10 +1441,22 @@ button {
   z-index: 50;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 16px;
   justify-content: center;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
+}
+
+.poster-generating-spinner {
+  animation: poster-spinner-spin 1s linear infinite;
+  color: #d6a13d;
+}
+
+@keyframes poster-spinner-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .poster-generating-overlay span {
