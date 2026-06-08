@@ -573,7 +573,8 @@ button {
 .selected-logo {
   width: 58px;
   height: 58px;
-  padding: 3px;
+  padding: 6px;
+  border-radius: 0;
   overflow: hidden;
 }
 
