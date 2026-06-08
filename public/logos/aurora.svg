@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Aurora">
+  <defs>
+    <linearGradient id="g-aurora" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5be7ff"/>
+      <stop offset="1" stop-color="#111111"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="20" fill="#f8f9fb"/>
+  <path d="M20 14h88l10 22v42c0 24-17 41-54 52-37-11-54-28-54-52V36l10-22Z" fill="url(#g-aurora)"/>
+  <path d="M26 22h76l8 17v37c0 20-14 34-46 44-32-10-46-24-46-44V39l8-17Z" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="4"/>
+  <text x="64" y="72" text-anchor="middle" dominant-baseline="middle" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="900" fill="#fff">AG</text>
+</svg>
