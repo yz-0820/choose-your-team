@@ -11,6 +11,12 @@ const getEventLabel = (event: Event) => {
 const formatPercent = (value: number) => `${(value * 100).toFixed(value < 0.01 ? 2 : 1)}%`;
 
 const getMarketTier = (rank: number, teamCount: number, normalizedOdds: number) => {
+  if (teamCount <= 2) {
+    if (normalizedOdds >= 0.6) return "夺冠热门";
+    if (normalizedOdds >= 0.4) return "均势选择";
+    return "下风选择";
+  }
+
   const percentile = rank / teamCount;
   if (rank <= 2) return "夺冠热门";
   if (normalizedOdds < 0.02) return "大冷门";
@@ -80,7 +86,7 @@ export const buildAiRoastPrompt = (
     `今天是 ${new Date().toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" })}。`,
     "请基于用户的冠军预测组合，生成 1 句中文娱乐锐评。",
     "要求：二十四至四十八个汉字；诙谐、有梗、有趣；",
-    "根据市场排名、归一化胜率、热门分层和相对平均值调整语气：夺冠热门/强势选择可以调侃稳健或随大流，冷门/大冷门可以调侃搏冷或做梦，合理选择用中性吐槽；",
+    "根据市场排名、归一化胜率、热门分层和相对平均值调整语气：夺冠热门/强势选择可以调侃稳健或随大流，均势选择用五五开语气，下风选择/冷门/大冷门可以调侃搏冷或做梦，合理选择用中性吐槽；",
     "结合四项选择之间的强弱反差，制造节目效果，不要机械复述数据；",
     "只锐评选择组合，不攻击国家、民族、地区、球员、选手或真人；不要提真实投注、赌博、赔率；不要输出标题、引号或解释。",
     "用户预测：",
