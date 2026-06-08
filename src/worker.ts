@@ -25,6 +25,12 @@ type DurableObjectStub = {
 
 type DurableObjectState = {
   storage: {
+    sql?: {
+      exec<T = unknown>(query: string, ...bindings: unknown[]): {
+        one(): T;
+        toArray(): T[];
+      };
+    };
     get<T>(key: string): Promise<T | undefined>;
     put<T>(key: string, value: T): Promise<void>;
     transaction?<T>(closure: (txn: {
@@ -83,16 +89,40 @@ export default {
 };
 
 export class PosterCounter {
-  constructor(private state: DurableObjectState) {}
+  constructor(private state: DurableObjectState) {
+    this.state.storage.sql?.exec(
+      "CREATE TABLE IF NOT EXISTS poster_counter (id TEXT PRIMARY KEY, value INTEGER NOT NULL)"
+    );
+  }
 
   async fetch(request: Request): Promise<Response> {
     if (request.method === "GET") {
+      if (this.state.storage.sql) {
+        const row = this.state.storage.sql
+          .exec<{ value: number }>("SELECT value FROM poster_counter WHERE id = ?", "global")
+          .toArray()[0];
+        return json({ serial: row?.value ?? 0 });
+      }
+
       const current = (await this.state.storage.get<number>("serial")) ?? 0;
       return json({ serial: current });
     }
 
     if (request.method !== "POST") {
       return json({ serial: null }, { status: 405 });
+    }
+
+    if (this.state.storage.sql) {
+      const row = this.state.storage.sql
+        .exec<{ value: number }>(
+          `INSERT INTO poster_counter (id, value)
+           VALUES (?, 1)
+           ON CONFLICT(id) DO UPDATE SET value = value + 1
+           RETURNING value`,
+          "global"
+        )
+        .one();
+      return json({ serial: row.value });
     }
 
     const transaction = this.state.storage.transaction;
@@ -114,8 +144,16 @@ export class PosterCounter {
 }
 
 function handlePosterSerial(request: Request, env: Env) {
-  const id = env.POSTER_COUNTER.idFromName("global-poster-serial");
-  return env.POSTER_COUNTER.get(id).fetch(request);
+  if (!env.POSTER_COUNTER) {
+    return json({ serial: null, error: "missing_counter_binding" }, { status: 503 });
+  }
+
+  try {
+    const id = env.POSTER_COUNTER.idFromName("global-poster-serial");
+    return env.POSTER_COUNTER.get(id).fetch(request);
+  } catch {
+    return json({ serial: null, error: "counter_unavailable" }, { status: 503 });
+  }
 }
 
 async function handleAiRoast(request: Request, env: Env) {
