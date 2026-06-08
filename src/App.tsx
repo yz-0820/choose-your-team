@@ -175,6 +175,58 @@ function App() {
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const canRefresh = refreshCount < 5;
 
+  const captureCurrentPoster = async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, 120));
+    if (!posterRef.current) return null;
+
+    const posterElement = posterRef.current;
+    const previousStyle = {
+      position: posterElement.style.position,
+      top: posterElement.style.top,
+      left: posterElement.style.left,
+      width: posterElement.style.width,
+      height: posterElement.style.height,
+      transform: posterElement.style.transform,
+      overflow: posterElement.style.overflow,
+    };
+
+    posterElement.style.position = "fixed";
+    posterElement.style.top = "0";
+    posterElement.style.left = "0";
+    posterElement.style.width = "auto";
+    posterElement.style.height = "auto";
+    posterElement.style.transform = "none";
+    posterElement.style.overflow = "visible";
+
+    const ticketElement = posterElement.querySelector(".poster-ticket") as HTMLElement | null;
+    const elementToCapture = ticketElement || posterElement;
+
+    try {
+      const dataUrl = await toPng(elementToCapture, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#090a0f",
+        style: {
+          transform: "scale(1)",
+          transformOrigin: "top left",
+          maxWidth: "none",
+          maxHeight: "none",
+          overflow: "hidden",
+        },
+      });
+      setPosterImageData(dataUrl);
+      return dataUrl;
+    } finally {
+      posterElement.style.position = previousStyle.position;
+      posterElement.style.top = previousStyle.top;
+      posterElement.style.left = previousStyle.left;
+      posterElement.style.width = previousStyle.width;
+      posterElement.style.height = previousStyle.height;
+      posterElement.style.transform = previousStyle.transform;
+      posterElement.style.overflow = previousStyle.overflow;
+    }
+  };
+
   const generatePoster = async () => {
     if (pickedCount !== activeEvents.length) {
       setToast("请先选满 4 项冠军预测");
@@ -196,44 +248,14 @@ function App() {
 
     const serial = nextPosterSerial();
     setPosterSerial(serial);
-    await new Promise((resolve) => window.setTimeout(resolve, 150));
-    if (!posterRef.current) return;
-
-    const posterElement = posterRef.current;
-    posterElement.style.position = 'fixed';
-    posterElement.style.top = '0';
-    posterElement.style.left = '0';
-    posterElement.style.width = 'auto';
-    posterElement.style.height = 'auto';
-    posterElement.style.transform = 'none';
-    posterElement.style.overflow = 'visible';
-
-    const ticketElement = posterElement.querySelector('.poster-ticket') as HTMLElement;
-    const elementToCapture = ticketElement || posterElement;
-
-    const dataUrl = await toPng(elementToCapture, {
-      cacheBust: true,
-      pixelRatio: 2,
-      backgroundColor: "#090a0f",
-      style: {
-        transform: 'scale(1)',
-        transformOrigin: 'top left',
-        maxWidth: 'none',
-        maxHeight: 'none',
-        overflow: 'hidden',
-      },
-    });
-
-    posterElement.style.position = '';
-    posterElement.style.top = '';
-    posterElement.style.left = '';
-    posterElement.style.width = '';
-    posterElement.style.height = '';
-    posterElement.style.transform = '';
-    posterElement.style.overflow = '';
+    const dataUrl = await captureCurrentPoster();
+    if (!dataUrl) {
+      setGenerating(false);
+      setToast("海报生成失败，请重试");
+      return;
+    }
 
     setGenerating(false);
-    setPosterImageData(dataUrl);
     setPosterOpen(true);
     setToast("海报已生成");
   };
@@ -243,10 +265,12 @@ function App() {
   };
 
   const downloadPoster = async () => {
-    if (!posterImageData) return;
+    const currentImageData = await captureCurrentPoster();
+    const imageData = currentImageData || posterImageData;
+    if (!imageData) return;
     
     try {
-      const response = await fetch(posterImageData);
+      const response = await fetch(imageData);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       
@@ -298,7 +322,7 @@ function App() {
               </style>
             </head>
             <body>
-              <img src="${posterImageData}" alt="我的冠军预测" />
+              <img src="${imageData}" alt="我的冠军预测" />
               <div class="tip">长按图片可保存到图库</div>
             </body>
           </html>
@@ -309,13 +333,15 @@ function App() {
   };
 
   const sharePoster = async () => {
-    if (!posterImageData) {
+    const currentImageData = await captureCurrentPoster();
+    const imageData = currentImageData || posterImageData;
+    if (!imageData) {
       setToast("请先生成海报");
       return;
     }
     if (navigator.share) {
       try {
-        const response = await fetch(posterImageData);
+        const response = await fetch(imageData);
         const blob = await response.blob();
         const file = new File([blob], "我的冠军预测.png", { type: "image/png" });
         await navigator.share({
