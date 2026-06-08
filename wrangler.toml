@@ -1,6 +1,11 @@
 name = "choose-your-team"
 main = "./src/worker.ts"
 compatibility_date = "2026-06-08"
+keep_vars = true
+
+[vars]
+AI_ROAST_ENDPOINT = "https://api.deepseek.com/chat/completions"
+AI_ROAST_MODEL = "deepseek-v4-flash"
 
 [assets]
 directory = "./dist/"
