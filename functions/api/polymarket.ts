@@ -14,29 +14,14 @@ export async function onRequest(context) {
   }
 
   try {
-    const targetUrl = `https://gamma-api.polymarket.com/events?slug=${encodeURIComponent(slug)}`;
-    const response = await fetch(targetUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
-    });
-
-    if (!response.ok) {
+    const event = await fetchPolymarketEvent(slug);
+    if (!event) {
       return new Response(JSON.stringify([]), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const data = await response.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      return new Response(JSON.stringify([]), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const event = data[0];
     const allMarkets = event?.markets || [];
     const parsedMarkets = allMarkets.map((m) => {
       try {
@@ -67,4 +52,29 @@ export async function onRequest(context) {
       headers: { "Content-Type": "application/json" },
     });
   }
+}
+
+async function fetchPolymarketEvent(slug) {
+  const headers = {
+    Accept: "application/json",
+    "User-Agent": "Mozilla/5.0",
+  };
+
+  const bySlug = await fetch(`https://gamma-api.polymarket.com/events/slug/${encodeURIComponent(slug)}`, {
+    headers,
+  });
+
+  if (bySlug.ok) {
+    const data = await bySlug.json();
+    if (data && !Array.isArray(data)) return data;
+  }
+
+  const fallback = await fetch(`https://gamma-api.polymarket.com/events?slug=${encodeURIComponent(slug)}`, {
+    headers,
+  });
+
+  if (!fallback.ok) return null;
+
+  const data = await fallback.json();
+  return Array.isArray(data) ? data[0] : data;
 }

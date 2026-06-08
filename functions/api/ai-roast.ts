@@ -14,7 +14,8 @@ export async function onRequest(context) {
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
     const apiKey = context.env.AI_ROAST_API_KEY;
     const endpoint = context.env.AI_ROAST_ENDPOINT || "https://api.deepseek.com/chat/completions";
-    const model = context.env.AI_ROAST_MODEL || "deepseek-v4-flash";
+    const defaultModel = "deepseek-v4-flash";
+    const model = context.env.AI_ROAST_MODEL || defaultModel;
 
     if (!prompt || !apiKey) {
       return new Response(JSON.stringify({ comment: "" }), {
@@ -23,7 +24,24 @@ export async function onRequest(context) {
       });
     }
 
-    const upstream = await fetch(endpoint, {
+    const comment =
+      (await requestAiComment(endpoint, apiKey, model, prompt)) ||
+      (model === defaultModel ? "" : await requestAiComment(endpoint, apiKey, defaultModel, prompt));
+
+    return new Response(JSON.stringify({ comment }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch {
+    return new Response(JSON.stringify({ comment: "" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+async function requestAiComment(endpoint, apiKey, model, prompt) {
+  const upstream = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -48,25 +66,12 @@ export async function onRequest(context) {
     });
 
     if (!upstream.ok) {
-      return new Response(JSON.stringify({ comment: "" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return "";
     }
 
     const data = await upstream.json();
     const message = data.choices?.[0]?.message;
-    const comment = normalizeComment(data.comment ?? message?.content ?? message?.reasoning_content);
-    return new Response(JSON.stringify({ comment }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch {
-    return new Response(JSON.stringify({ comment: "" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+    return normalizeComment(data.comment ?? message?.content ?? message?.reasoning_content);
 }
 
 function normalizeComment(value) {

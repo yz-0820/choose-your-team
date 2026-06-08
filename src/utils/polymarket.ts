@@ -1,4 +1,4 @@
-import type { Event } from "../data/events";
+import type { Event, Team } from "../data/events";
 import { findTeam } from "./predictions";
 
 // Event ID 到 Polymarket slug 的映射
@@ -141,7 +141,7 @@ type PolymarketProxyResponse = {
 /** 缓存过期时间：60 分钟 */
 const CACHE_TTL = 60 * 60 * 1000;
 
-const getCacheKey = (slug: string) => `poly:${slug}`;
+const getCacheKey = (slug: string) => `poly:v3:${slug}`;
 
 interface CacheEntry {
   data: PolymarketProxyResponse;
@@ -153,7 +153,7 @@ const readCache = (slug: string): PolymarketProxyResponse | null => {
     const raw = localStorage.getItem(getCacheKey(slug));
     if (!raw) return null;
     const entry: CacheEntry = JSON.parse(raw);
-    if (Date.now() - entry.timestamp < CACHE_TTL) {
+    if (Date.now() - entry.timestamp < CACHE_TTL && isPolymarketProxyResponse(entry.data)) {
       return entry.data;
     }
     localStorage.removeItem(getCacheKey(slug));
@@ -164,12 +164,22 @@ const readCache = (slug: string): PolymarketProxyResponse | null => {
 };
 
 const writeCache = (slug: string, data: PolymarketProxyResponse) => {
+  if (!isPolymarketProxyResponse(data)) return;
   try {
     const entry: CacheEntry = { data, timestamp: Date.now() };
     localStorage.setItem(getCacheKey(slug), JSON.stringify(entry));
   } catch {
     // ignore storage errors
   }
+};
+
+const isPolymarketProxyResponse = (data: unknown): data is PolymarketProxyResponse => {
+  if (Array.isArray(data)) return true;
+  return Boolean(
+    data &&
+      typeof data === "object" &&
+      Array.isArray((data as { markets?: unknown }).markets)
+  );
 };
 
 /**
@@ -212,6 +222,33 @@ const normalizeTeamName = (teamName: string): string => {
   return TEAM_TO_OUTCOME[teamName] || teamName;
 };
 
+const normalizeText = (value: string): string =>
+  normalizeTeamName(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const getTeamMatchNames = (team: Pick<Team, "id" | "nameZh" | "nameEn" | "abbr">): string[] => {
+  const names = [team.nameZh, team.nameEn, team.abbr, team.id]
+    .filter((value): value is string => Boolean(value))
+    .map(normalizeText)
+    .filter(Boolean);
+
+  return Array.from(new Set(names));
+};
+
+const hasTeamMatch = (value: string, teamNames: string[]): boolean => {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) return false;
+
+  return teamNames.some((teamName) => {
+    if (!teamName) return false;
+    return normalizedValue === teamName ||
+      normalizedValue.includes(teamName) ||
+      teamName.includes(normalizedValue);
+  });
+};
+
 /**
  * 从问题中提取队伍名称（用于 "Will XXX win..." 类型的二元市场）
  */
@@ -229,28 +266,24 @@ const extractTeamFromQuestion = (question: string): string | null => {
  */
 const isOutcomeMatch = (
   outcomeTitle: string,
-  normalizedTeam: string,
+  teamNames: string[],
   question: string
 ): boolean => {
   const normalizedOutcome = outcomeTitle.toLowerCase().trim();
 
   // Yes/No 二元市场：需要从问题中提取队伍名
-  if (normalizedOutcome === "yes" || normalizedOutcome === "no") {
+  if (normalizedOutcome === "no") {
+    return false;
+  }
+
+  if (normalizedOutcome === "yes") {
     const teamInQuestion = extractTeamFromQuestion(question);
     if (!teamInQuestion) return false;
-    const normalizedQuestionTeam = teamInQuestion.toLowerCase().trim();
-    return (
-      normalizedQuestionTeam.includes(normalizedTeam) ||
-      normalizedTeam.includes(normalizedQuestionTeam)
-    );
+    return hasTeamMatch(teamInQuestion, teamNames);
   }
 
   // 直接匹配队伍名
-  return (
-    normalizedOutcome === normalizedTeam ||
-    normalizedOutcome.includes(normalizedTeam) ||
-    normalizedTeam.includes(normalizedOutcome)
-  );
+  return hasTeamMatch(outcomeTitle, teamNames);
 };
 
 export const fetchPolymarketOdds = async (
@@ -263,11 +296,11 @@ export const fetchPolymarketOdds = async (
   const data = await fetchPolymarketViaViteProxy(slug);
   if (!data || Array.isArray(data) || !data.markets?.length) return null;
 
-  const normalizedTeam = normalizeTeamName(teamId).toLowerCase().trim();
+  const teamNames = [normalizeText(teamId)];
 
   for (const market of data.markets) {
     for (const outcome of market.outcomes) {
-      if (outcome.title.toLowerCase() === "yes" && isOutcomeMatch(outcome.title, normalizedTeam, market.question)) {
+      if (isOutcomeMatch(outcome.title, teamNames, market.question)) {
         return outcome.price;
       }
     }
@@ -301,11 +334,11 @@ export const fetchAllPolymarketOdds = async (
       return;
     }
 
-    const normalizedTeam = normalizeTeamName(team.nameZh).toLowerCase().trim();
+    const teamNames = getTeamMatchNames(team);
 
     for (const market of data.markets) {
       for (const outcome of market.outcomes) {
-        if (outcome.title.toLowerCase() === "yes" && isOutcomeMatch(outcome.title, normalizedTeam, market.question)) {
+        if (isOutcomeMatch(outcome.title, teamNames, market.question)) {
           odds[event.id] = outcome.price;
           return;
         }
@@ -350,10 +383,10 @@ export const fetchEventAllOdds = async (
   const odds: Record<string, number> = {};
 
   for (const team of teams) {
-    const normalizedTeam = normalizeTeamName(team.nameZh).toLowerCase().trim();
+    const teamNames = getTeamMatchNames(team);
     for (const market of data.markets) {
       for (const outcome of market.outcomes) {
-        if (outcome.title.toLowerCase() === "yes" && isOutcomeMatch(outcome.title, normalizedTeam, market.question)) {
+        if (isOutcomeMatch(outcome.title, teamNames, market.question)) {
           odds[team.id] = outcome.price;
           break;
         }
