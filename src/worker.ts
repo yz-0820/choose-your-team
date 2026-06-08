@@ -5,6 +5,8 @@ type AssetFetcher = {
 type Env = {
   ASSETS: AssetFetcher;
   AI_ROAST_API_KEY?: string;
+  DEEPSEEK_API_KEY?: string;
+  AI_API_KEY?: string;
   AI_ROAST_ENDPOINT?: string;
   AI_ROAST_MODEL?: string;
 };
@@ -61,7 +63,7 @@ async function handleAiRoast(request: Request, env: Env) {
   try {
     const body = (await request.json()) as { prompt?: unknown };
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-    const apiKey = env.AI_ROAST_API_KEY;
+    const apiKey = getAiApiKey(env);
     const endpoint = env.AI_ROAST_ENDPOINT || DEFAULT_AI_ENDPOINT;
     const configuredModel = env.AI_ROAST_MODEL || DEFAULT_AI_MODEL;
 
@@ -82,7 +84,7 @@ async function handleAiRoast(request: Request, env: Env) {
 }
 
 async function handleAiRoastHealth(env: Env) {
-  const apiKey = env.AI_ROAST_API_KEY;
+  const apiKey = getAiApiKey(env);
   const endpoint = env.AI_ROAST_ENDPOINT || DEFAULT_AI_ENDPOINT;
   const configuredModel = env.AI_ROAST_MODEL || DEFAULT_AI_MODEL;
 
@@ -140,6 +142,10 @@ async function handleAiRoastHealth(env: Env) {
       message: error instanceof Error ? error.message : "unknown_error",
     });
   }
+}
+
+function getAiApiKey(env: Env) {
+  return env.AI_ROAST_API_KEY || env.DEEPSEEK_API_KEY || env.AI_API_KEY;
 }
 
 async function requestAiComment(endpoint: string, apiKey: string, model: string, prompt: string) {

@@ -12,7 +12,7 @@ export async function onRequest(context) {
   try {
     const body = await context.request.json();
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-    const apiKey = context.env.AI_ROAST_API_KEY;
+    const apiKey = getAiApiKey(context.env);
     const endpoint = context.env.AI_ROAST_ENDPOINT || "https://api.deepseek.com/chat/completions";
     const defaultModel = "deepseek-v4-flash";
     const model = context.env.AI_ROAST_MODEL || defaultModel;
@@ -38,6 +38,10 @@ export async function onRequest(context) {
       headers: { "Content-Type": "application/json" },
     });
   }
+}
+
+function getAiApiKey(env) {
+  return env.AI_ROAST_API_KEY || env.DEEPSEEK_API_KEY || env.AI_API_KEY;
 }
 
 async function requestAiComment(endpoint, apiKey, model, prompt) {

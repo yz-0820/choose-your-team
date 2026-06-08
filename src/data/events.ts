@@ -61,7 +61,7 @@ const valorantTeams: Team[] = [
   vt("drg", "Dragon Ranger", "Dragon Ranger Gaming", "CN", ["#5ce1e6", "#1d2b53"], "DRG"),
   vt("global-esports", "Global Esports", "Global Esports", "Pacific", ["#111111", "#f4c430"], "GE"),
   vt("full-sense", "FULL SENSE", "FULL SENSE", "Pacific", ["#ff5a1f", "#131313"], "FS"),
-  vt("team-vitality", "Vitality", "Vitality", "EMEA", ["#f5d547", "#111111"], "VIT"),
+  { ...vt("team-vitality", "Vitality", "Vitality", "EMEA", ["#f5d547", "#111111"], "VIT"), logo: logo("vitality") },
   vt("fut", "FUT Esports", "FUT Esports", "EMEA", ["#e41d2c", "#111111"], "FUT"),
   vt("leviatan", "Leviatán", "Leviatán", "Americas", ["#00d1ff", "#141414"], "LEV"),
   vt("nrg", "NRG", "NRG", "Americas", ["#d81f26", "#111111"], "NRG"),
