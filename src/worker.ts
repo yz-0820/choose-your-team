@@ -4,11 +4,34 @@ type AssetFetcher = {
 
 type Env = {
   ASSETS: AssetFetcher;
+  POSTER_COUNTER: DurableObjectNamespace;
   AI_ROAST_API_KEY?: string;
   DEEPSEEK_API_KEY?: string;
   AI_API_KEY?: string;
   AI_ROAST_ENDPOINT?: string;
   AI_ROAST_MODEL?: string;
+};
+
+type DurableObjectNamespace = {
+  idFromName(name: string): DurableObjectId;
+  get(id: DurableObjectId): DurableObjectStub;
+};
+
+type DurableObjectId = unknown;
+
+type DurableObjectStub = {
+  fetch(request: Request): Promise<Response>;
+};
+
+type DurableObjectState = {
+  storage: {
+    get<T>(key: string): Promise<T | undefined>;
+    put<T>(key: string, value: T): Promise<void>;
+    transaction?<T>(closure: (txn: {
+      get<TValue>(key: string): Promise<TValue | undefined>;
+      put<TValue>(key: string, value: TValue): Promise<void>;
+    }) => Promise<T>): Promise<T>;
+  };
 };
 
 type PolymarketOutcome = {
@@ -51,9 +74,49 @@ export default {
       return handlePolymarket(request);
     }
 
+    if (url.pathname === "/api/poster-serial") {
+      return handlePosterSerial(request, env);
+    }
+
     return env.ASSETS.fetch(request);
   },
 };
+
+export class PosterCounter {
+  constructor(private state: DurableObjectState) {}
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.method === "GET") {
+      const current = (await this.state.storage.get<number>("serial")) ?? 0;
+      return json({ serial: current });
+    }
+
+    if (request.method !== "POST") {
+      return json({ serial: null }, { status: 405 });
+    }
+
+    const transaction = this.state.storage.transaction;
+    if (transaction) {
+      const next = await transaction(async (txn) => {
+        const current = (await txn.get<number>("serial")) ?? 0;
+        const serial = current + 1;
+        await txn.put("serial", serial);
+        return serial;
+      });
+      return json({ serial: next });
+    }
+
+    const current = (await this.state.storage.get<number>("serial")) ?? 0;
+    const next = current + 1;
+    await this.state.storage.put("serial", next);
+    return json({ serial: next });
+  }
+}
+
+function handlePosterSerial(request: Request, env: Env) {
+  const id = env.POSTER_COUNTER.idFromName("global-poster-serial");
+  return env.POSTER_COUNTER.get(id).fetch(request);
+}
 
 async function handleAiRoast(request: Request, env: Env) {
   if (request.method !== "POST") {

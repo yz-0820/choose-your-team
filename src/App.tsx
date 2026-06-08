@@ -31,12 +31,25 @@ const normalizePicks = (picks: Record<string, string>) =>
 
 const POSTER_SERIAL_KEY = "choose-your-team:poster-serial";
 
-const nextPosterSerial = () => {
+const nextLocalPosterSerial = () => {
   const stored = window.localStorage.getItem(POSTER_SERIAL_KEY);
   const current = Number.parseInt(stored ?? "0", 10);
   const next = Number.isFinite(current) && current > 0 ? current + 1 : 1;
   window.localStorage.setItem(POSTER_SERIAL_KEY, String(next));
   return next;
+};
+
+const nextPosterSerial = async () => {
+  try {
+    const response = await fetch("/api/poster-serial", { method: "POST" });
+    if (!response.ok) return nextLocalPosterSerial();
+    const data = (await response.json()) as { serial?: unknown };
+    return typeof data.serial === "number" && Number.isFinite(data.serial)
+      ? data.serial
+      : nextLocalPosterSerial();
+  } catch {
+    return nextLocalPosterSerial();
+  }
 };
 
 const initialState = (): PredictionState => {
@@ -246,7 +259,7 @@ function App() {
     setRefreshCount(0);
     setLastRefreshTime(0);
 
-    const serial = nextPosterSerial();
+    const serial = await nextPosterSerial();
     setPosterSerial(serial);
     const dataUrl = await captureCurrentPoster();
     if (!dataUrl) {
