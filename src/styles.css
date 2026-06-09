@@ -1065,7 +1065,7 @@ button {
   height: auto;
   border-radius: 8px;
   color: #f7f7f8;
-  background: transparent;
+  background: #15171c;
 }
 
 @media (max-width: 400px) {
@@ -1090,7 +1090,7 @@ button {
   border-radius: 8px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
-    rgba(9, 10, 15, 1);
+    rgba(21, 23, 28, 1);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
   width: 360px;
   max-width: 100%;
@@ -1118,52 +1118,101 @@ button {
 }
 
 .poster-ticket-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  border-bottom: 1px dashed rgba(214, 161, 61, 0.36);
-  padding: 0 0 10px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: flex-end;
+  gap: 8px;
+  border-bottom: 1px dashed rgba(140, 104, 36, 0.25);
+  padding: 0 0 14px;
   flex-shrink: 0;
+  min-height: 80px;
+  width: 100%;
+  min-width: 0;
+}
+
+.ticket-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-bottom: 0px;
+  min-width: 0;
 }
 
 .poster-ticket-head span,
 .parlay-summary span {
-  color: #00e676;
-  font-size: 11px;
+  color: #31f27a;
+  font-size: 10px;
   font-weight: 950;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .poster-ticket-head h2 {
-  margin: 6px 0 0;
-  font-size: 24px;
-  line-height: 1.05;
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: #f5f7fa;
+  font-weight: 800;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 .ticket-stamp {
-  display: grid;
-  justify-items: end;
-  gap: 3px;
-  min-width: 104px;
-  color: rgba(247, 247, 248, 0.76);
-  font-size: 10px;
-  font-weight: 900;
-  text-align: right;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding-bottom: 2px;
+  min-width: 82px;
 }
 
-.ticket-stamp svg {
-  color: #d6a13d;
+.ticket-stamp-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding-left: 10px;
+  border-left: 1px solid rgba(200, 145, 43, 0.3);
 }
 
-.ticket-stamp b {
-  color: #ffffff;
-}
-
-.ticket-stamp small {
-  color: rgba(247, 247, 248, 0.55);
-  font-size: 10px;
+.ticket-stamp-info b {
+  color: #f5f7fa;
+  font-size: 13px;
   font-weight: 800;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+.ticket-stamp-info small {
+  color: #8e939d;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.ticket-qrcode {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-width: 58px;
+}
+
+.ticket-qrcode-wrap {
+  background: #ffffff;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ticket-qrcode img {
+  width: 50px;
+  height: 50px;
+  display: block;
 }
 
 .poster-slip-list {
@@ -1206,6 +1255,20 @@ button {
   background-repeat: no-repeat;
   background-position: center;
   background-size: cover;
+  opacity: 0.28;
+  mix-blend-mode: screen;
+  filter: saturate(0.85) contrast(1.08);
+  pointer-events: none;
+}
+
+.slip-trophy-bg-img {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 140px;
+  object-fit: cover;
+  object-position: center;
   opacity: 0.28;
   mix-blend-mode: screen;
   filter: saturate(0.85) contrast(1.08);
@@ -1534,5 +1597,25 @@ button {
     width: 100%;
     height: auto;
     min-height: 640px;
+  }
+}
+
+/* Skeleton Loading */
+.skeleton-card {
+  pointer-events: none;
+}
+
+.skeleton-pulse {
+  background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }

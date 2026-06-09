@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { RefreshCw, TicketCheck, Trophy } from "lucide-react";
+import { RefreshCw, Trophy } from "lucide-react";
 import type { Event } from "../data/events";
 import { findTeam } from "../utils/predictions";
 
@@ -58,6 +58,7 @@ const formatTicketSerial = (serialNumber: number | null) =>
 
 export const Poster = forwardRef<HTMLDivElement, PosterProps>(function Poster({ events, picks, serialNumber, aiComment, polymarketOdds, onRefreshAiRoast }, ref) {
   const ticketDate = getTicketDate();
+
   const posterPicks = events.map((event) => {
     const team = findTeam(event, picks[event.id]);
     const polymarketOdd = polymarketOdds?.[event.id];
@@ -92,14 +93,20 @@ export const Poster = forwardRef<HTMLDivElement, PosterProps>(function Poster({ 
       <div className="poster-bg" />
       <div className="poster-ticket" style={{ borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
         <header className="poster-ticket-head">
-          <div>
+          <div className="ticket-title">
             <span>SPORTS PICK SLIP</span>
             <h2>冠军预测投注单</h2>
           </div>
           <div className="ticket-stamp">
-            <TicketCheck size={18} aria-hidden="true" />
-            <b>{formatTicketSerial(serialNumber)}</b>
-            <small>{ticketDate.display}</small>
+            <div className="ticket-stamp-info">
+              <b>{formatTicketSerial(serialNumber)}</b>
+              <small>{ticketDate.display}</small>
+            </div>
+          </div>
+          <div className="ticket-qrcode">
+            <div className="ticket-qrcode-wrap">
+              <img src="/qrcode-share.png" alt="扫码分享" crossOrigin="anonymous" />
+            </div>
           </div>
         </header>
 

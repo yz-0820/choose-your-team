@@ -154,6 +154,11 @@ const readCache = (slug: string): PolymarketProxyResponse | null => {
     if (!raw) return null;
     const entry: CacheEntry = JSON.parse(raw);
     if (Date.now() - entry.timestamp < CACHE_TTL && isPolymarketProxyResponse(entry.data)) {
+      // 空数组不认为是有效缓存
+      if (Array.isArray(entry.data) && entry.data.length === 0) {
+        localStorage.removeItem(getCacheKey(slug));
+        return null;
+      }
       return entry.data;
     }
     localStorage.removeItem(getCacheKey(slug));
@@ -165,6 +170,8 @@ const readCache = (slug: string): PolymarketProxyResponse | null => {
 
 const writeCache = (slug: string, data: PolymarketProxyResponse) => {
   if (!isPolymarketProxyResponse(data)) return;
+  // 空数组不缓存
+  if (Array.isArray(data) && data.length === 0) return;
   try {
     const entry: CacheEntry = { data, timestamp: Date.now() };
     localStorage.setItem(getCacheKey(slug), JSON.stringify(entry));

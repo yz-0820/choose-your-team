@@ -75,15 +75,28 @@ function App() {
   const [posterOpen, setPosterOpen] = useState(false);
   const [posterSerial, setPosterSerial] = useState<number | null>(null);
   const [aiRoast, setAiRoast] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const posterRef = useRef<HTMLDivElement>(null);
   const [, setRefresh] = useState(0);
 
   // 页面加载时自动过滤已淘汰队伍（胜率为0）
   useEffect(() => {
+    // 超时兜底：最多 20 秒后强制显示内容
+    const timeoutId = window.setTimeout(() => {
+      setLoading(false);
+      setRefresh((n) => n + 1);
+    }, 20000);
+
     getFilteredEvents(defaultEvents).then((filtered) => {
       activeEvents = filtered;
+      setLoading(false);
+      setRefresh((n) => n + 1);
+    }).catch(() => {
+      setLoading(false);
       setRefresh((n) => n + 1);
     });
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   // 禁止/允许页面滚动
@@ -190,7 +203,7 @@ function App() {
   const canRefresh = refreshCount < 5;
 
   const captureCurrentPoster = async () => {
-    await new Promise((resolve) => window.setTimeout(resolve, 120));
+    await new Promise((resolve) => window.setTimeout(resolve, 200));
     if (!posterRef.current) return null;
 
     const posterElement = posterRef.current;
@@ -215,11 +228,33 @@ function App() {
     const ticketElement = posterElement.querySelector(".poster-ticket") as HTMLElement | null;
     const elementToCapture = ticketElement || posterElement;
 
+    // Convert all images to base64 data URLs for html-to-image compatibility
+    const images = elementToCapture.querySelectorAll("img");
+    await Promise.all(
+      Array.from(images).map(async (img) => {
+        try {
+          if (img.src.startsWith("data:")) return;
+          const response = await fetch(img.src);
+          const blob = await response.blob();
+          const reader = new FileReader();
+          img.src = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch {
+          // If fetch fails, keep original src
+        }
+      })
+    );
+    await new Promise((resolve) => window.setTimeout(resolve, 100));
+
     try {
+      console.log("[截图] 开始 toPng...");
       const dataUrl = await toPng(elementToCapture, {
         cacheBust: true,
         pixelRatio: 2,
-        backgroundColor: "#090a0f",
+        backgroundColor: "#15171c",
         style: {
           transform: "scale(1)",
           transformOrigin: "top left",
@@ -228,8 +263,13 @@ function App() {
           overflow: "hidden",
         },
       });
+      console.log("[截图] toPng 成功");
       setPosterImageData(dataUrl);
       return dataUrl;
+    } catch (e) {
+      console.error("[截图] toPng 失败", e);
+      setToast("海报截图失败，请重试");
+      return null;
     } finally {
       posterElement.style.position = previousStyle.position;
       posterElement.style.top = previousStyle.top;
@@ -249,31 +289,52 @@ function App() {
 
     setGenerating(true);
 
-    // 获取 Polymarket 实时胜率
-    const odds = await fetchPolymarketEventOdds(activeEvents, state.picks);
-    setPolymarketOdds(odds.selected);
-    setPolymarketEventOdds(odds.all);
+    try {
+      console.log("[海报] 开始获取 Polymarket 数据...");
+      const oddsPromise = fetchPolymarketEventOdds(activeEvents, state.picks);
+      const aiPromise = requestAiRoast(activeEvents, state.picks, {}, {});
 
-    setAiRoast(null);
-    const comment = await requestAiRoast(activeEvents, state.picks, odds.selected, odds.all);
-    setAiRoast(comment);
+      const [odds, comment] = await Promise.all([
+        withTimeout(oddsPromise, 30000, "Polymarket 数据请求超时"),
+        withTimeout(aiPromise, 30000, "AI 锐评请求超时"),
+      ]);
 
-    setRefreshCount(0);
-    setLastRefreshTime(0);
+      setPolymarketOdds(odds.selected);
+      setPolymarketEventOdds(odds.all);
+      setAiRoast(comment);
+      console.log("[海报] 数据获取完成，AI 锐评:", comment);
 
-    const serial = await nextPosterSerial();
-    setPosterSerial(serial);
-    const dataUrl = await captureCurrentPoster();
-    if (!dataUrl) {
+      setRefreshCount(0);
+      setLastRefreshTime(0);
+
+      console.log("[海报] 开始截图...");
+      const serial = await nextPosterSerial();
+      setPosterSerial(serial);
+      const dataUrl = await captureCurrentPoster();
+      if (!dataUrl) {
+        console.error("[海报] 截图返回 null");
+        setToast("海报截图失败，请重试");
+        return;
+      }
+      console.log("[海报] 截图完成");
+
+      setPosterOpen(true);
+      setToast("海报已生成");
+    } catch (e) {
+      console.error("[海报] 生成失败", e);
+      setToast("生成失败，请重试");
+    } finally {
+      console.log("[海报] finally: 清除生成状态");
       setGenerating(false);
-      setToast("海报生成失败，请重试");
-      return;
     }
-
-    setGenerating(false);
-    setPosterOpen(true);
-    setToast("海报已生成");
   };
+
+  // 通用超时包装
+  const withTimeout = <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> =>
+    Promise.race([
+      promise,
+      new Promise<T>((_, reject) => window.setTimeout(() => reject(new Error(message)), ms)),
+    ]);
 
   const handleSharePrediction = () => {
     sharePrediction();
@@ -407,15 +468,28 @@ function App() {
           />
 
           <div className="event-list" aria-label="赛事冠军预测列表">
-            {activeEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                selectedTeamId={state.picks[event.id]}
-                onPick={updatePick}
-                onOpenSelector={setActiveEvent}
-              />
-            ))}
+            {loading
+              ? activeEvents.map((event) => (
+                  <div key={event.id} className="event-card skeleton-card">
+                    <div className="event-cover" style={{ position: "relative" }}>
+                      <div className="skeleton-pulse" style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.04)" }} />
+                    </div>
+                    <div className="event-main">
+                      <div className="skeleton-pulse" style={{ width: "60%", height: 18, borderRadius: 4, marginBottom: 8 }} />
+                      <div className="skeleton-pulse" style={{ width: "40%", height: 12, borderRadius: 4, marginBottom: 14 }} />
+                      <div className="skeleton-pulse" style={{ height: 78, borderRadius: 8 }} />
+                    </div>
+                  </div>
+                ))
+              : activeEvents.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    selectedTeamId={state.picks[event.id]}
+                    onPick={updatePick}
+                    onOpenSelector={setActiveEvent}
+                  />
+                ))}
           </div>
 
           <div className="bottom-actions">
