@@ -3,6 +3,8 @@ import https from "https";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 type ChatCompletionResponse = {
   comment?: unknown;
   choices?: Array<{
@@ -217,6 +219,6 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, ".", "");
 
   return {
-    plugins: [react(), createAiRoastProxy(env), createPolymarketProxy(env)],
+    plugins: [react(), createAiRoastProxy(env), createPolymarketProxy(env), cloudflare()],
   };
 });
